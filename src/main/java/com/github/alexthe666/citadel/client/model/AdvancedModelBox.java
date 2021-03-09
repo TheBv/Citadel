@@ -1,16 +1,20 @@
 package com.github.alexthe666.citadel.client.model;
 
+import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.ModelBox;
+import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.PositionTextureVertex;
+import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.TexturedQuad;
 import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.matrix.MatrixStack.Entry;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
-import net.minecraft.client.renderer.Matrix3f;
-import net.minecraft.client.renderer.Matrix4f;
-import net.minecraft.client.renderer.Vector3f;
-import net.minecraft.client.renderer.Vector4f;
 import net.minecraft.client.renderer.model.ModelRenderer;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.vector.Matrix3f;
+import net.minecraft.util.math.vector.Matrix4f;
+import net.minecraft.util.math.vector.Vector3f;
+import net.minecraft.util.math.vector.Vector4f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -22,29 +26,42 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public class AdvancedModelBox extends ModelRenderer {
-    public float defaultRotationX, defaultRotationY, defaultRotationZ;
-    public float defaultOffsetX, defaultOffsetY, defaultOffsetZ;
-    public float defaultPositionX, defaultPositionY, defaultPositionZ;
-    public float scaleX = 1.0F, scaleY = 1.0F, scaleZ = 1.0F;
-    public int textureOffsetX, textureOffsetY;
+    public float defaultRotationX;
+    public float defaultRotationY;
+    public float defaultRotationZ;
+    public float defaultOffsetX;
+    public float defaultOffsetY;
+    public float defaultOffsetZ;
+    public float defaultPositionX;
+    public float defaultPositionY;
+    public float defaultPositionZ;
+    public float scaleX;
+    public float scaleY;
+    public float scaleZ;
+    public int textureOffsetX;
+    public int textureOffsetY;
     public boolean scaleChildren;
     private AdvancedEntityModel model;
     private AdvancedModelBox parent;
     private int displayList;
     private boolean compiled;
-    public ObjectList<TabulaModelRenderUtils.ModelBox> cubeList;
+    public ObjectList<com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.ModelBox> cubeList;
     public ObjectList<ModelRenderer> childModels;
     private float textureWidth;
     private float textureHeight;
     public float offsetX;
     public float offsetY;
     public float offsetZ;
-    public String boxName = "";
+    public String boxName;
 
     public AdvancedModelBox(AdvancedEntityModel model, String name) {
         super(model);
-        this.textureWidth = model.textureWidth;
-        this.textureHeight = model.textureHeight;
+        this.scaleX = 1.0F;
+        this.scaleY = 1.0F;
+        this.scaleZ = 1.0F;
+        this.boxName = "";
+        this.textureWidth = (float)model.textureWidth;
+        this.textureHeight = (float)model.textureHeight;
         this.model = model;
         this.cubeList = new ObjectArrayList();
         this.childModels = new ObjectArrayList();
@@ -52,17 +69,17 @@ public class AdvancedModelBox extends ModelRenderer {
     }
 
     public AdvancedModelBox(AdvancedEntityModel model) {
-        this(model, null);
-        this.textureWidth = model.textureWidth;
-        this.textureHeight = model.textureHeight;
+        this(model, (String)null);
+        this.textureWidth = (float)model.textureWidth;
+        this.textureHeight = (float)model.textureHeight;
         this.cubeList = new ObjectArrayList();
         this.childModels = new ObjectArrayList();
     }
 
     public AdvancedModelBox(AdvancedEntityModel model, int textureOffsetX, int textureOffsetY) {
         this(model);
-        this.textureWidth = model.textureWidth;
-        this.textureHeight = model.textureHeight;
+        this.textureWidth = (float)model.textureWidth;
+        this.textureHeight = (float)model.textureHeight;
         this.setTextureOffset(textureOffsetX, textureOffsetY);
         this.cubeList = new ObjectArrayList();
         this.childModels = new ObjectArrayList();

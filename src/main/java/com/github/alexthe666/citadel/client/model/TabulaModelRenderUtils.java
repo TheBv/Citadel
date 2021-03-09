@@ -1,62 +1,17 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
 package com.github.alexthe666.citadel.client.model;
 
-import net.minecraft.client.renderer.Vector3f;
 import net.minecraft.util.Direction;
+import net.minecraft.util.math.vector.Vector3f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 public class TabulaModelRenderUtils {
-
-    @OnlyIn(Dist.CLIENT)
-    static class PositionTextureVertex {
-        public final Vector3f position;
-        public final float textureU;
-        public final float textureV;
-
-        public PositionTextureVertex(float p_i1158_1_, float p_i1158_2_, float p_i1158_3_, float p_i1158_4_, float p_i1158_5_) {
-            this(new Vector3f(p_i1158_1_, p_i1158_2_, p_i1158_3_), p_i1158_4_, p_i1158_5_);
-        }
-
-        public TabulaModelRenderUtils.PositionTextureVertex setTextureUV(float p_78240_1_, float p_78240_2_) {
-            return new TabulaModelRenderUtils.PositionTextureVertex(this.position, p_78240_1_, p_78240_2_);
-        }
-
-        public PositionTextureVertex(Vector3f p_i225952_1_, float p_i225952_2_, float p_i225952_3_) {
-            this.position = p_i225952_1_;
-            this.textureU = p_i225952_2_;
-            this.textureV = p_i225952_3_;
-        }
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    static class TexturedQuad {
-        public final TabulaModelRenderUtils.PositionTextureVertex[] vertexPositions;
-        public final Vector3f normal;
-
-        public TexturedQuad(TabulaModelRenderUtils.PositionTextureVertex[] p_i225951_1_, float p_i225951_2_, float p_i225951_3_, float p_i225951_4_, float p_i225951_5_, float p_i225951_6_, float p_i225951_7_, boolean p_i225951_8_, Direction p_i225951_9_) {
-            this.vertexPositions = p_i225951_1_;
-            float lvt_10_1_ = 0.0F / p_i225951_6_;
-            float lvt_11_1_ = 0.0F / p_i225951_7_;
-            p_i225951_1_[0] = p_i225951_1_[0].setTextureUV(p_i225951_4_ / p_i225951_6_ - lvt_10_1_, p_i225951_3_ / p_i225951_7_ + lvt_11_1_);
-            p_i225951_1_[1] = p_i225951_1_[1].setTextureUV(p_i225951_2_ / p_i225951_6_ + lvt_10_1_, p_i225951_3_ / p_i225951_7_ + lvt_11_1_);
-            p_i225951_1_[2] = p_i225951_1_[2].setTextureUV(p_i225951_2_ / p_i225951_6_ + lvt_10_1_, p_i225951_5_ / p_i225951_7_ - lvt_11_1_);
-            p_i225951_1_[3] = p_i225951_1_[3].setTextureUV(p_i225951_4_ / p_i225951_6_ - lvt_10_1_, p_i225951_5_ / p_i225951_7_ - lvt_11_1_);
-            if (p_i225951_8_) {
-                int lvt_12_1_ = p_i225951_1_.length;
-
-                for(int lvt_13_1_ = 0; lvt_13_1_ < lvt_12_1_ / 2; ++lvt_13_1_) {
-                    TabulaModelRenderUtils.PositionTextureVertex lvt_14_1_ = p_i225951_1_[lvt_13_1_];
-                    p_i225951_1_[lvt_13_1_] = p_i225951_1_[lvt_12_1_ - 1 - lvt_13_1_];
-                    p_i225951_1_[lvt_12_1_ - 1 - lvt_13_1_] = lvt_14_1_;
-                }
-            }
-
-            this.normal = p_i225951_9_.toVector3f();
-            if (p_i225951_8_) {
-                this.normal.mul(-1.0F, 1.0F, 1.0F);
-            }
-
-        }
+    public TabulaModelRenderUtils() {
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -115,6 +70,58 @@ public class TabulaModelRenderUtils {
             this.quads[4] = new TabulaModelRenderUtils.TexturedQuad(new TabulaModelRenderUtils.PositionTextureVertex[]{lvt_19_1_, lvt_18_2_, lvt_21_1_, lvt_20_1_}, lvt_27_1_, lvt_33_1_, lvt_28_1_, lvt_34_1_, p_i225950_13_, p_i225950_14_, p_i225950_12_, Direction.NORTH);
             this.quads[0] = new TabulaModelRenderUtils.TexturedQuad(new TabulaModelRenderUtils.PositionTextureVertex[]{lvt_23_1_, lvt_19_1_, lvt_20_1_, lvt_24_1_}, lvt_28_1_, lvt_33_1_, lvt_30_1_, lvt_34_1_, p_i225950_13_, p_i225950_14_, p_i225950_12_, Direction.EAST);
             this.quads[5] = new TabulaModelRenderUtils.TexturedQuad(new TabulaModelRenderUtils.PositionTextureVertex[]{lvt_22_1_, lvt_23_1_, lvt_24_1_, lvt_25_1_}, lvt_30_1_, lvt_33_1_, lvt_31_1_, lvt_34_1_, p_i225950_13_, p_i225950_14_, p_i225950_12_, Direction.SOUTH);
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    static class TexturedQuad {
+        public final TabulaModelRenderUtils.PositionTextureVertex[] vertexPositions;
+        public final Vector3f normal;
+
+        public TexturedQuad(TabulaModelRenderUtils.PositionTextureVertex[] p_i225951_1_, float p_i225951_2_, float p_i225951_3_, float p_i225951_4_, float p_i225951_5_, float p_i225951_6_, float p_i225951_7_, boolean p_i225951_8_, Direction p_i225951_9_) {
+            this.vertexPositions = p_i225951_1_;
+            float lvt_10_1_ = 0.0F / p_i225951_6_;
+            float lvt_11_1_ = 0.0F / p_i225951_7_;
+            p_i225951_1_[0] = p_i225951_1_[0].setTextureUV(p_i225951_4_ / p_i225951_6_ - lvt_10_1_, p_i225951_3_ / p_i225951_7_ + lvt_11_1_);
+            p_i225951_1_[1] = p_i225951_1_[1].setTextureUV(p_i225951_2_ / p_i225951_6_ + lvt_10_1_, p_i225951_3_ / p_i225951_7_ + lvt_11_1_);
+            p_i225951_1_[2] = p_i225951_1_[2].setTextureUV(p_i225951_2_ / p_i225951_6_ + lvt_10_1_, p_i225951_5_ / p_i225951_7_ - lvt_11_1_);
+            p_i225951_1_[3] = p_i225951_1_[3].setTextureUV(p_i225951_4_ / p_i225951_6_ - lvt_10_1_, p_i225951_5_ / p_i225951_7_ - lvt_11_1_);
+            if (p_i225951_8_) {
+                int lvt_12_1_ = p_i225951_1_.length;
+
+                for(int lvt_13_1_ = 0; lvt_13_1_ < lvt_12_1_ / 2; ++lvt_13_1_) {
+                    TabulaModelRenderUtils.PositionTextureVertex lvt_14_1_ = p_i225951_1_[lvt_13_1_];
+                    p_i225951_1_[lvt_13_1_] = p_i225951_1_[lvt_12_1_ - 1 - lvt_13_1_];
+                    p_i225951_1_[lvt_12_1_ - 1 - lvt_13_1_] = lvt_14_1_;
+                }
+            }
+
+            this.normal = p_i225951_9_.toVector3f();
+            if (p_i225951_8_) {
+                this.normal.mul(-1.0F, 1.0F, 1.0F);
+            }
+
+        }
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    static class PositionTextureVertex {
+        public final Vector3f position;
+        public final float textureU;
+        public final float textureV;
+
+        public PositionTextureVertex(float p_i1158_1_, float p_i1158_2_, float p_i1158_3_, float p_i1158_4_, float p_i1158_5_) {
+            this(new Vector3f(p_i1158_1_, p_i1158_2_, p_i1158_3_), p_i1158_4_, p_i1158_5_);
+        }
+
+        public TabulaModelRenderUtils.PositionTextureVertex setTextureUV(float p_78240_1_, float p_78240_2_) {
+            return new TabulaModelRenderUtils.PositionTextureVertex(this.position, p_78240_1_, p_78240_2_);
+        }
+
+        public PositionTextureVertex(Vector3f p_i225952_1_, float p_i225952_2_, float p_i225952_3_) {
+            this.position = p_i225952_1_;
+            this.textureU = p_i225952_2_;
+            this.textureV = p_i225952_3_;
         }
     }
 }

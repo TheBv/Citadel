@@ -1,3 +1,8 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
 package com.github.alexthe666.citadel.server.item;
 
 import net.minecraft.inventory.EquipmentSlotType;
@@ -13,52 +18,51 @@ public class CustomArmorMaterial implements IArmorMaterial {
     private SoundEvent sound;
     private float toughness;
     private Ingredient ingredient = null;
+    public float knockbackResistance = 0.0F;
 
-    public CustomArmorMaterial(String name, int durability, int[] damageReduction, int encantability, SoundEvent sound, float toughness) {
+    public CustomArmorMaterial(String name, int durability, int[] damageReduction, int encantability, SoundEvent sound, float toughness, float knockbackResistance) {
         this.name = name;
         this.durability = durability;
         this.damageReduction = damageReduction;
         this.encantability = encantability;
         this.sound = sound;
         this.toughness = toughness;
+        this.knockbackResistance = knockbackResistance;
     }
 
-    @Override
     public int getDurability(EquipmentSlotType slotIn) {
-        return durability;
+        return this.durability;
     }
 
-    @Override
     public int getDamageReductionAmount(EquipmentSlotType slotIn) {
-        return damageReduction[slotIn.getIndex()];
+        return this.damageReduction[slotIn.getIndex()];
     }
 
-    @Override
     public int getEnchantability() {
-        return encantability;
+        return this.encantability;
     }
 
-    @Override
     public SoundEvent getSoundEvent() {
-        return sound;
+        return this.sound;
     }
 
-    @Override
     public Ingredient getRepairMaterial() {
-        return ingredient == null ? Ingredient.EMPTY : ingredient;
+        return this.ingredient == null ? Ingredient.EMPTY : this.ingredient;
     }
 
-    public void setRepairMaterial(Ingredient ingredient){
+    public void setRepairMaterial(Ingredient ingredient) {
         this.ingredient = ingredient;
     }
 
-    @Override
     public String getName() {
-        return name;
+        return this.name;
     }
 
-    @Override
     public float getToughness() {
-        return toughness;
+        return this.toughness;
+    }
+
+    public float getKnockbackResistance() {
+        return this.knockbackResistance;
     }
 }

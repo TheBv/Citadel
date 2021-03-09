@@ -1,15 +1,20 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by Fernflower decompiler)
+//
+
 package com.github.alexthe666.citadel.server.item;
 
 import net.minecraft.item.IItemTier;
 import net.minecraft.item.crafting.Ingredient;
 
 public class CustomToolMaterial implements IItemTier {
-   private String name;
-   private int harvestLevel;
-   private int durability;
-   private float damage;
-   private float speed;
-   private int enchantability;
+    private String name;
+    private int harvestLevel;
+    private int durability;
+    private float damage;
+    private float speed;
+    private int enchantability;
     private Ingredient ingredient = null;
 
     public CustomToolMaterial(String name, int harvestLevel, int durability, float damage, float speed, int enchantability) {
@@ -22,40 +27,34 @@ public class CustomToolMaterial implements IItemTier {
     }
 
     public String getName() {
-        return name;
+        return this.name;
     }
 
-    @Override
     public int getMaxUses() {
-        return durability;
+        return this.durability;
     }
 
-    @Override
     public float getEfficiency() {
-        return speed;
+        return this.speed;
     }
 
-    @Override
     public float getAttackDamage() {
-        return damage;
+        return this.damage;
     }
 
-    @Override
     public int getHarvestLevel() {
-        return harvestLevel;
+        return this.harvestLevel;
     }
 
-    @Override
     public int getEnchantability() {
-        return enchantability;
+        return this.enchantability;
     }
 
-    @Override
     public Ingredient getRepairMaterial() {
-        return ingredient == null ? Ingredient.EMPTY : ingredient;
+        return this.ingredient == null ? Ingredient.EMPTY : this.ingredient;
     }
 
-    public void setRepairMaterial(Ingredient ingredient){
+    public void setRepairMaterial(Ingredient ingredient) {
         this.ingredient = ingredient;
     }
 }
