@@ -1,14 +1,15 @@
 package com.github.alexthe666.citadel.client.model;
 
-import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.ModelBox;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.PositionTextureVertex;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.TexturedQuad;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.matrix.MatrixStack.Entry;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
+import com.mojang.blaze3d.vertex.IVertexConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.model.ModelRenderer;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.vector.Matrix3f;
@@ -17,6 +18,11 @@ import net.minecraft.util.math.vector.Vector3f;
 import net.minecraft.util.math.vector.Vector4f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * An enhanced RendererModel
@@ -53,7 +59,10 @@ public class AdvancedModelBox extends ModelRenderer {
     public float offsetY;
     public float offsetZ;
     public String boxName;
-
+    Method growBuffer;
+    Field fullFormatField;
+    Field nextElementBytesField;
+    Field vertexCountField;
     public AdvancedModelBox(AdvancedEntityModel model, String name) {
         super(model);
         this.scaleX = 1.0F;
@@ -66,6 +75,19 @@ public class AdvancedModelBox extends ModelRenderer {
         this.cubeList = new ObjectArrayList();
         this.childModels = new ObjectArrayList();
         this.boxName = name;
+        try {
+            growBuffer = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
+            growBuffer.setAccessible(true);
+            fullFormatField = BufferBuilder.class.getDeclaredField("fullFormat");
+            fullFormatField.setAccessible(true);
+            nextElementBytesField = BufferBuilder.class.getDeclaredField("nextElementBytes");
+            nextElementBytesField.setAccessible(true);
+            vertexCountField = BufferBuilder.class.getDeclaredField("vertexCount");
+            vertexCountField.setAccessible(true);
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
     }
 
     public AdvancedModelBox(AdvancedEntityModel model) {
@@ -282,18 +304,18 @@ public class AdvancedModelBox extends ModelRenderer {
         }
     }
 
-    private void doRender(MatrixStack.Entry p_228306_1_, IVertexBuilder p_228306_2_, int p_228306_3_, int p_228306_4_, float p_228306_5_, float p_228306_6_, float p_228306_7_, float p_228306_8_) {
+    private void doRender(Entry p_228306_1_, IVertexBuilder p_228306_2_, int p_228306_3_, int p_228306_4_, float p_228306_5_, float p_228306_6_, float p_228306_7_, float p_228306_8_) {
         Matrix4f lvt_9_1_ = p_228306_1_.getMatrix();
         Matrix3f lvt_10_1_ = p_228306_1_.getNormal();
         ObjectListIterator var11 = this.cubeList.iterator();
-
+        List<BufferBuilderImproved.Vertex> vertexList = new ArrayList<>();
         while(var11.hasNext()) {
             TabulaModelRenderUtils.ModelBox lvt_12_1_ = (TabulaModelRenderUtils.ModelBox)var11.next();
-            TabulaModelRenderUtils.TexturedQuad[] var13 = lvt_12_1_.quads;
+            TexturedQuad[] var13 = lvt_12_1_.quads;
             int var14 = var13.length;
 
             for(int var15 = 0; var15 < var14; ++var15) {
-                TabulaModelRenderUtils.TexturedQuad lvt_16_1_ = var13[var15];
+                TexturedQuad lvt_16_1_ = var13[var15];
                 Vector3f lvt_17_1_ = lvt_16_1_.normal.copy();
                 lvt_17_1_.transform(lvt_10_1_);
                 float lvt_18_1_ = lvt_17_1_.getX();
@@ -301,16 +323,63 @@ public class AdvancedModelBox extends ModelRenderer {
                 float lvt_20_1_ = lvt_17_1_.getZ();
 
                 for(int lvt_21_1_ = 0; lvt_21_1_ < 4; ++lvt_21_1_) {
-                    TabulaModelRenderUtils.PositionTextureVertex lvt_22_1_ = lvt_16_1_.vertexPositions[lvt_21_1_];
+                    PositionTextureVertex lvt_22_1_ = lvt_16_1_.vertexPositions[lvt_21_1_];
                     float lvt_23_1_ = lvt_22_1_.position.getX() / 16.0F;
                     float lvt_24_1_ = lvt_22_1_.position.getY() / 16.0F;
                     float lvt_25_1_ = lvt_22_1_.position.getZ() / 16.0F;
                     Vector4f lvt_26_1_ = new Vector4f(lvt_23_1_, lvt_24_1_, lvt_25_1_, 1.0F);
                     lvt_26_1_.transform(lvt_9_1_);
-                    p_228306_2_.addVertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), p_228306_5_, p_228306_6_, p_228306_7_, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_);
+                    vertexList.add(new BufferBuilderImproved.Vertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), p_228306_5_, p_228306_6_, p_228306_7_, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_));
+                    //p_228306_2_.addVertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), p_228306_5_, p_228306_6_, p_228306_7_, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_);
                 }
             }
         }
+        int tempElementBytes = 0;
+        try{
+            BufferBuilder bufferBuilder = (BufferBuilder) p_228306_2_;
+            int vertexCount = vertexCountField.getInt(bufferBuilder);
+            growBuffer.invoke(bufferBuilder,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+            boolean fullFormat = fullFormatField.getBoolean(bufferBuilder);
+            int nextElementBytes = nextElementBytesField.getInt(bufferBuilder);
+
+            for (BufferBuilderImproved.Vertex vertex : vertexList) {
+
+                bufferBuilder.putFloat(0+tempElementBytes, vertex.x);
+                bufferBuilder.putFloat(4+tempElementBytes, vertex.y);
+                bufferBuilder.putFloat(8+tempElementBytes, vertex.z);
+                bufferBuilder.putByte(12+tempElementBytes, (byte) ((int) (vertex.red * 255.0F)));
+                bufferBuilder.putByte(13+tempElementBytes, (byte) ((int) (vertex.green * 255.0F)));
+                bufferBuilder.putByte(14+tempElementBytes, (byte) ((int) (vertex.blue * 255.0F)));
+                bufferBuilder.putByte(15+tempElementBytes, (byte) ((int) (vertex.alpha * 255.0F)));
+                bufferBuilder.putFloat(16+tempElementBytes, vertex.texU);
+                bufferBuilder.putFloat(20+tempElementBytes, vertex.texV);
+                int i;
+                if (fullFormat) {
+                    bufferBuilder.putShort(24+tempElementBytes, (short) (vertex.overlayUV & '\uffff'));
+                    bufferBuilder.putShort(26+tempElementBytes, (short) (vertex.lightmapUV >> 16 & '\uffff'));
+                    i = 28;
+                } else {
+                    i = 24;
+                }
+
+                bufferBuilder.putShort(i + 0+tempElementBytes, (short) (vertex.lightmapUV & '\uffff'));
+                bufferBuilder.putShort(i + 2+tempElementBytes, (short) (vertex.lightmapUV >> 16 & '\uffff'));
+                bufferBuilder.putByte(i + 4+tempElementBytes, IVertexConsumer.normalInt(vertex.normalX));
+                bufferBuilder.putByte(i + 5+tempElementBytes, IVertexConsumer.normalInt(vertex.normalY));
+                bufferBuilder.putByte(i + 6+tempElementBytes, IVertexConsumer.normalInt(vertex.normalZ));
+                tempElementBytes += i+8;
+                vertexCount++;
+            }
+            nextElementBytesField.set(bufferBuilder,nextElementBytes+tempElementBytes);
+            vertexCountField.set(bufferBuilder,vertexCount);
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
+        
+        /*for (BufferBuilderImproved.Vertex vertex : vertexList){
+            p_228306_2_.addVertex(vertex.x, vertex.y, vertex.z, vertex.red, vertex.green, vertex.blue, vertex.alpha, vertex.texU, vertex.texV, vertex.overlayUV, vertex.lightmapUV,vertex.normalX, vertex.normalY, vertex.normalZ);
+        }*/
     }
 
     public AdvancedEntityModel getModel() {
