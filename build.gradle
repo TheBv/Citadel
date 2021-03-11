@@ -80,7 +80,6 @@ minecraft {
 dependencies {
     minecraft 'net.minecraftforge:forge:1.16.4-35.1.10'
     runtimeOnly fg.deobf("curse.maven:iaf-264231:3217622")
-    compile 'com.github.Javalbert:faster-than-reflection:v1.0.0'
 }
 
 jar {
