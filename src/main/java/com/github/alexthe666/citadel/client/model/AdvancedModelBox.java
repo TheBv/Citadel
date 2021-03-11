@@ -1,10 +1,9 @@
 package com.github.alexthe666.citadel.client.model;
 
+import com.esotericsoftware.reflectasm.FieldAccess;
+import com.esotericsoftware.reflectasm.MethodAccess;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.PositionTextureVertex;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.TexturedQuad;
-import com.github.javalbert.reflection.ClassAccessFactory;
-import com.github.javalbert.reflection.FieldAccess;
-import com.github.javalbert.reflection.MethodAccess;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.matrix.MatrixStack.Entry;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
@@ -12,6 +11,7 @@ import com.mojang.blaze3d.vertex.IVertexConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.model.ModelRenderer;
 import net.minecraft.util.math.MathHelper;
@@ -21,13 +21,28 @@ import net.minecraft.util.math.vector.Vector3f;
 import net.minecraft.util.math.vector.Vector4f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
+import org.spongepowered.tools.obfuscation.mirror.FieldHandle;
 
-import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
+
+import java.lang.invoke.CallSite;
+import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.function.ObjIntConsumer;
+import java.util.function.ToIntFunction;
 /**
  * An enhanced RendererModel
  *
@@ -71,7 +86,10 @@ public class AdvancedModelBox extends ModelRenderer {
     Field fullFormatField;
     Field nextElementBytesField;
     Field vertexCountField;
-    FieldAccess<BufferBuilder> fieldAccess = ClassAccessFactory.get(BufferBuilder.class);
+    ObjIntConsumer growBufferLambda;
+    //FieldAccess access = FieldAccess.get(BufferBuilder.class);
+    //MethodAccess methodAccess = MethodAccess.get(BufferBuilder.class);
+    //FieldAccess<BufferBuilder> fieldAccess = ClassAccessFactory.get(BufferBuilder.class);
     //MethodAccess<BufferBuilder> methodAccess = ClassAccessFactory.get(BufferBuilder.class);
     public AdvancedModelBox(AdvancedEntityModel model, String name) {
         super(model);
@@ -86,22 +104,67 @@ public class AdvancedModelBox extends ModelRenderer {
         this.childModels = new ObjectArrayList();
         this.boxName = name;
         try {
-            //growBufferIndex = methodAccess.methodIndex("growBuffer");
-            fullFormatFieldIndex = fieldAccess.fieldIndex("fullFormat");
-            nextElementBytesFieldIndex = fieldAccess.fieldIndex("nextElementBytes");
-            vertexCountFieldIndex = fieldAccess.fieldIndex("vertexCount");
-            /*growBuffer = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
+            //growBufferIndex = methodAccess.getIndex("growBuffer");
+            //fullFormatFieldIndex = access.getIndex("fullFormat");
+            //nextElementBytesFieldIndex = access.getIndex("nextElementBytes");
+            //vertexCountFieldIndex = access.getIndex("vertexCount");
+            growBuffer = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
             growBuffer.setAccessible(true);
+
+            final Lookup original = MethodHandles.lookup();
+            final Field internal = Lookup.class.getDeclaredField("IMPL_LOOKUP");
+            internal.setAccessible(true);
+            final Lookup trusted = (Lookup) internal.get(original);
+
+            // Invoke black magic.
+            final Lookup caller = trusted.in(BufferBuilder.class);
+
+            final Method setterMethod = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
+            final MethodHandle setterHandle = caller.unreflect(setterMethod);
+
+            growBufferLambda  = setterLambda(caller, setterHandle);
+
             fullFormatField = BufferBuilder.class.getDeclaredField("fullFormat");
-            fullFormatField.setAccessible(true);
+            fullFormatField.setAccessible(true);/*
             nextElementBytesField = BufferBuilder.class.getDeclaredField("nextElementBytes");
-            nextElementBytesField.setAccessible(true);
-            vertexCountField = BufferBuilder.class.getDeclaredField("vertexCount");
-            vertexCountField.setAccessible(true);*/
-        }
-        catch (Exception ex){
+            nextElementBytesField.setAccessible(true);*/
+            //growBuffer = MethodUtils.(BufferBuilder.class,"growBuffer",int.class);
+            nextElementBytesField = FieldUtils.getField(BufferBuilder.class,"nextElementBytes",true);
+            vertexCountField = FieldUtils.getField(BufferBuilder.class,"vertexCount",true);
+        } catch (Throwable ex){
             ex.printStackTrace();
         }
+    }
+
+    static ObjIntConsumer setterLambda(final Lookup caller,
+                                       final MethodHandle setterHandle) throws Throwable {
+
+        final Class<?> functionKlaz = ObjIntConsumer.class;
+        final String functionName = "accept";
+        final Class<?> functionReturn = void.class;
+        final Class<?>[] functionParams = new Class<?>[] { Object.class,
+                int.class };
+
+        final MethodType factoryMethodType = MethodType
+                .methodType(functionKlaz);
+        final MethodType functionMethodType = MethodType.methodType(
+                functionReturn, functionParams);
+
+        final CallSite setterFactory = LambdaMetafactory.metafactory( //
+                caller, // Represents a lookup context.
+                functionName, // The name of the method to implement.
+                factoryMethodType, // Signature of the factory method.
+                functionMethodType, // Signature of function implementation.
+                setterHandle, // Function method implementation.
+                setterHandle.type() // Function method type signature.
+        );
+
+        final MethodHandle setterInvoker = setterFactory.getTarget();
+
+        final ObjIntConsumer setterLambda = (ObjIntConsumer) setterInvoker
+                .invokeExact();
+
+        return setterLambda;
     }
 
     public AdvancedModelBox(AdvancedEntityModel model) {
@@ -303,7 +366,12 @@ public class AdvancedModelBox extends ModelRenderer {
             if (!this.cubeList.isEmpty() || !this.childModels.isEmpty()) {
                 p_228309_1_.push();
                 this.translateRotate(p_228309_1_);
-                this.doRender(p_228309_1_.getLast(), p_228309_2_, p_228309_3_, p_228309_4_, p_228309_5_, p_228309_6_, p_228309_7_, p_228309_8_);
+                try {
+                    this.doRender(p_228309_1_.getLast(), p_228309_2_, p_228309_3_, p_228309_4_, p_228309_5_, p_228309_6_, p_228309_7_, p_228309_8_);
+                }
+                catch (Exception ex) {
+                    ex.printStackTrace();
+                }
                 ObjectListIterator var9 = this.childModels.iterator();
                 if(!scaleChildren){
                     p_228309_1_.scale(1F / Math.max(this.scaleX, 0.0001F), 1F / Math.max(this.scaleY, 0.0001F) , 1F / Math.max(this.scaleZ, 0.0001F));
@@ -317,12 +385,25 @@ public class AdvancedModelBox extends ModelRenderer {
             }
         }
     }
+    public int getSize() {
+        int other = 0;
+        for (TabulaModelRenderUtils.ModelBox modelBox : this.cubeList){
+            other += modelBox.quads.length *4;
+        }
+        return this.cubeList.size()* other;
+    }
+    private void doRender(Entry p_228306_1_, IVertexBuilder p_228306_2_, int lightmapUV, int overlayUV, float red, float green, float blue, float p_228306_8_) throws IllegalAccessException {
+        BufferBuilder bufferBuilder = (BufferBuilder) p_228306_2_;
 
-    private void doRender(Entry p_228306_1_, IVertexBuilder p_228306_2_, int p_228306_3_, int p_228306_4_, float p_228306_5_, float p_228306_6_, float p_228306_7_, float p_228306_8_) {
+        growBufferLambda.accept(bufferBuilder,getSize()*bufferBuilder.getVertexFormat().getSize());
+        boolean fullFormat = fullFormatField.getBoolean(bufferBuilder);
+        int vertexCount = vertexCountField.getInt(bufferBuilder);
+        int nextElementBytes = nextElementBytesField.getInt(bufferBuilder);
+        int tempElementBytes = 0;
         Matrix4f lvt_9_1_ = p_228306_1_.getMatrix();
         Matrix3f lvt_10_1_ = p_228306_1_.getNormal();
         ObjectListIterator var11 = this.cubeList.iterator();
-        List<BufferBuilderImproved.Vertex> vertexList = new ArrayList<>();
+        //List<BufferBuilderImproved.Vertex> vertexList = new ArrayList<>();
         while(var11.hasNext()) {
             TabulaModelRenderUtils.ModelBox lvt_12_1_ = (TabulaModelRenderUtils.ModelBox)var11.next();
             TexturedQuad[] var13 = lvt_12_1_.quads;
@@ -343,52 +424,56 @@ public class AdvancedModelBox extends ModelRenderer {
                     float lvt_25_1_ = lvt_22_1_.position.getZ() / 16.0F;
                     Vector4f lvt_26_1_ = new Vector4f(lvt_23_1_, lvt_24_1_, lvt_25_1_, 1.0F);
                     lvt_26_1_.transform(lvt_9_1_);
-                    vertexList.add(new BufferBuilderImproved.Vertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), p_228306_5_, p_228306_6_, p_228306_7_, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_));
-                    //p_228306_2_.addVertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), p_228306_5_, p_228306_6_, p_228306_7_, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_);
+                    bufferBuilder.putFloat(0+tempElementBytes, lvt_26_1_.getX());
+                    bufferBuilder.putFloat(4+tempElementBytes, lvt_26_1_.getY());
+                    bufferBuilder.putFloat(8+tempElementBytes, lvt_26_1_.getZ());
+                    bufferBuilder.putByte(12+tempElementBytes, (byte) ((int) (red * 255.0F)));
+                    bufferBuilder.putByte(13+tempElementBytes, (byte) ((int) (green * 255.0F)));
+                    bufferBuilder.putByte(14+tempElementBytes, (byte) ((int) (blue * 255.0F)));
+                    bufferBuilder.putByte(15+tempElementBytes, (byte) ((int) (p_228306_8_ * 255.0F)));
+                    bufferBuilder.putFloat(16+tempElementBytes, lvt_22_1_.textureU);
+                    bufferBuilder.putFloat(20+tempElementBytes, lvt_22_1_.textureV);
+                    int i;
+                    if (fullFormat) {
+                        bufferBuilder.putShort(24+tempElementBytes, (short) (overlayUV & '\uffff'));
+                        bufferBuilder.putShort(26+tempElementBytes, (short) (lightmapUV >> 16 & '\uffff'));
+                        i = 28;
+                    } else {
+                        i = 24;
+                    }
+
+                    bufferBuilder.putShort(i + 0+tempElementBytes, (short) (lightmapUV & '\uffff'));
+                    bufferBuilder.putShort(i + 2+tempElementBytes, (short) (lightmapUV >> 16 & '\uffff'));
+                    bufferBuilder.putByte(i + 4+tempElementBytes, IVertexConsumer.normalInt(lvt_18_1_));
+                    bufferBuilder.putByte(i + 5+tempElementBytes, IVertexConsumer.normalInt(lvt_19_1_));
+                    bufferBuilder.putByte(i + 6+tempElementBytes, IVertexConsumer.normalInt(lvt_20_1_));
+                    tempElementBytes += i+8;
+                    vertexCount++;
+                    //vertexList.add(new BufferBuilderImproved.Vertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), red, green, blue, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_));
+                    //p_228306_2_.addVertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), red, green, blue, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, overlayUV, lightmapUV, lvt_18_1_, lvt_19_1_, lvt_20_1_);
                 }
             }
         }
-        int tempElementBytes = 0;
+        vertexCountField.setInt(bufferBuilder,vertexCount);
+        nextElementBytesField.setInt(bufferBuilder,nextElementBytes+tempElementBytes);
+
         try{
-            BufferBuilder bufferBuilder = (BufferBuilder) p_228306_2_;
-            int l = 0;
-            int vertexCount = fieldAccess.getIntField(bufferBuilder,vertexCountFieldIndex);//vertexCountField.getInt(bufferBuilder);
-            //methodAccess.call(bufferBuilder,growBufferIndex,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+
+            //FieldUtils.readField(bufferBuilder,"vertexCount",true);
+
+            // (int) FieldUtils.readField(bufferBuilder,"vertexCount",true);//access.getInt(bufferBuilder,vertexCountFieldIndex);//getIntField(bufferBuilder,vertexCountFieldIndex);//vertexCountField.getInt(bufferBuilder);
+
+
+            //methodAccess.invoke(bufferBuilder,growBufferIndex,growBufferIndex,vertexList.size()*bufferBuilder.getVertexFormat().getSize());//(bufferBuilder,growBufferIndex,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+
             //growBuffer.invoke(bufferBuilder,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
-            boolean fullFormat = fieldAccess.getBooleanField(bufferBuilder,fullFormatFieldIndex);//fullFormatField.getBoolean(bufferBuilder);
-            int nextElementBytes = fieldAccess.getIntField(bufferBuilder,nextElementBytesFieldIndex);//nextElementBytesField.getInt(bufferBuilder);
-            for (BufferBuilderImproved.Vertex vertex : vertexList) {
+            //boolean fullFormat = fieldAccess.getBooleanField(bufferBuilder,fullFormatFieldIndex);//fullFormatField.getBoolean(bufferBuilder);
+            //int nextElementBytes = fieldAccess.getIntField(bufferBuilder,nextElementBytesFieldIndex);//nextElementBytesField.getInt(bufferBuilder);
 
-                bufferBuilder.putFloat(0+tempElementBytes, vertex.x);
-                bufferBuilder.putFloat(4+tempElementBytes, vertex.y);
-                bufferBuilder.putFloat(8+tempElementBytes, vertex.z);
-                bufferBuilder.putByte(12+tempElementBytes, (byte) ((int) (vertex.red * 255.0F)));
-                bufferBuilder.putByte(13+tempElementBytes, (byte) ((int) (vertex.green * 255.0F)));
-                bufferBuilder.putByte(14+tempElementBytes, (byte) ((int) (vertex.blue * 255.0F)));
-                bufferBuilder.putByte(15+tempElementBytes, (byte) ((int) (vertex.alpha * 255.0F)));
-                bufferBuilder.putFloat(16+tempElementBytes, vertex.texU);
-                bufferBuilder.putFloat(20+tempElementBytes, vertex.texV);
-                int i;
-                if (fullFormat) {
-                    bufferBuilder.putShort(24+tempElementBytes, (short) (vertex.overlayUV & '\uffff'));
-                    bufferBuilder.putShort(26+tempElementBytes, (short) (vertex.lightmapUV >> 16 & '\uffff'));
-                    i = 28;
-                } else {
-                    i = 24;
-                }
-
-                bufferBuilder.putShort(i + 0+tempElementBytes, (short) (vertex.lightmapUV & '\uffff'));
-                bufferBuilder.putShort(i + 2+tempElementBytes, (short) (vertex.lightmapUV >> 16 & '\uffff'));
-                bufferBuilder.putByte(i + 4+tempElementBytes, IVertexConsumer.normalInt(vertex.normalX));
-                bufferBuilder.putByte(i + 5+tempElementBytes, IVertexConsumer.normalInt(vertex.normalY));
-                bufferBuilder.putByte(i + 6+tempElementBytes, IVertexConsumer.normalInt(vertex.normalZ));
-                tempElementBytes += i+8;
-                vertexCount++;
-            }
-            fieldAccess.setIntField(bufferBuilder,nextElementBytesFieldIndex,nextElementBytes+tempElementBytes);
+            //fieldAccess.setIntField(bufferBuilder,nextElementBytesFieldIndex,nextElementBytes+tempElementBytes);
             //nextElementBytesField.set(bufferBuilder,nextElementBytes+tempElementBytes);
-            fieldAccess.setIntField(bufferBuilder,vertexCountFieldIndex,vertexCount);
-            //vertexCountField.set(bufferBuilder,vertexCount);
+            //fieldAccess.setIntField(bufferBuilder,vertexCountFieldIndex,vertexCount);
+            //
         }
         catch (Exception ex){
             ex.printStackTrace();
