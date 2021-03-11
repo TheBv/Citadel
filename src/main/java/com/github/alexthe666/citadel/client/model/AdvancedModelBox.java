@@ -2,6 +2,9 @@ package com.github.alexthe666.citadel.client.model;
 
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.PositionTextureVertex;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.TexturedQuad;
+import com.github.javalbert.reflection.ClassAccessFactory;
+import com.github.javalbert.reflection.FieldAccess;
+import com.github.javalbert.reflection.MethodAccess;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.matrix.MatrixStack.Entry;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
@@ -19,6 +22,7 @@ import net.minecraft.util.math.vector.Vector4f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+import java.lang.invoke.LambdaMetafactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -60,9 +64,15 @@ public class AdvancedModelBox extends ModelRenderer {
     public float offsetZ;
     public String boxName;
     Method growBuffer;
+    int growBufferIndex;
+    int fullFormatFieldIndex;
+    int nextElementBytesFieldIndex;
+    int vertexCountFieldIndex;
     Field fullFormatField;
     Field nextElementBytesField;
     Field vertexCountField;
+    FieldAccess<BufferBuilder> fieldAccess = ClassAccessFactory.get(BufferBuilder.class);
+    //MethodAccess<BufferBuilder> methodAccess = ClassAccessFactory.get(BufferBuilder.class);
     public AdvancedModelBox(AdvancedEntityModel model, String name) {
         super(model);
         this.scaleX = 1.0F;
@@ -76,14 +86,18 @@ public class AdvancedModelBox extends ModelRenderer {
         this.childModels = new ObjectArrayList();
         this.boxName = name;
         try {
-            growBuffer = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
+            //growBufferIndex = methodAccess.methodIndex("growBuffer");
+            fullFormatFieldIndex = fieldAccess.fieldIndex("fullFormat");
+            nextElementBytesFieldIndex = fieldAccess.fieldIndex("nextElementBytes");
+            vertexCountFieldIndex = fieldAccess.fieldIndex("vertexCount");
+            /*growBuffer = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
             growBuffer.setAccessible(true);
             fullFormatField = BufferBuilder.class.getDeclaredField("fullFormat");
             fullFormatField.setAccessible(true);
             nextElementBytesField = BufferBuilder.class.getDeclaredField("nextElementBytes");
             nextElementBytesField.setAccessible(true);
             vertexCountField = BufferBuilder.class.getDeclaredField("vertexCount");
-            vertexCountField.setAccessible(true);
+            vertexCountField.setAccessible(true);*/
         }
         catch (Exception ex){
             ex.printStackTrace();
@@ -337,11 +351,12 @@ public class AdvancedModelBox extends ModelRenderer {
         int tempElementBytes = 0;
         try{
             BufferBuilder bufferBuilder = (BufferBuilder) p_228306_2_;
-            int vertexCount = vertexCountField.getInt(bufferBuilder);
-            growBuffer.invoke(bufferBuilder,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
-            boolean fullFormat = fullFormatField.getBoolean(bufferBuilder);
-            int nextElementBytes = nextElementBytesField.getInt(bufferBuilder);
-
+            int l = 0;
+            int vertexCount = fieldAccess.getIntField(bufferBuilder,vertexCountFieldIndex);//vertexCountField.getInt(bufferBuilder);
+            //methodAccess.call(bufferBuilder,growBufferIndex,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+            //growBuffer.invoke(bufferBuilder,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+            boolean fullFormat = fieldAccess.getBooleanField(bufferBuilder,fullFormatFieldIndex);//fullFormatField.getBoolean(bufferBuilder);
+            int nextElementBytes = fieldAccess.getIntField(bufferBuilder,nextElementBytesFieldIndex);//nextElementBytesField.getInt(bufferBuilder);
             for (BufferBuilderImproved.Vertex vertex : vertexList) {
 
                 bufferBuilder.putFloat(0+tempElementBytes, vertex.x);
@@ -370,8 +385,10 @@ public class AdvancedModelBox extends ModelRenderer {
                 tempElementBytes += i+8;
                 vertexCount++;
             }
-            nextElementBytesField.set(bufferBuilder,nextElementBytes+tempElementBytes);
-            vertexCountField.set(bufferBuilder,vertexCount);
+            fieldAccess.setIntField(bufferBuilder,nextElementBytesFieldIndex,nextElementBytes+tempElementBytes);
+            //nextElementBytesField.set(bufferBuilder,nextElementBytes+tempElementBytes);
+            fieldAccess.setIntField(bufferBuilder,vertexCountFieldIndex,vertexCount);
+            //vertexCountField.set(bufferBuilder,vertexCount);
         }
         catch (Exception ex){
             ex.printStackTrace();
