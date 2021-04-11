@@ -52,7 +52,7 @@ public class BufferBuilderImproved extends DefaultColorVertexBuilder implements 
         this.growBuffer(this.vertexFormat.getSize());
     }
 
-    public void growBuffer(int increaseAmount) {
+    private void growBuffer(int increaseAmount) {
         if (this.nextElementBytes + increaseAmount > this.byteBuffer.capacity()) {
             int i = this.byteBuffer.capacity();
             int j = i + roundUpPositive(increaseAmount);
@@ -63,14 +63,6 @@ public class BufferBuilderImproved extends DefaultColorVertexBuilder implements 
             ((Buffer)bytebuffer).rewind();
             this.byteBuffer = bytebuffer;
         }
-    }
-
-    public ByteBuffer getBuffer(){
-        ByteBuffer bytebuffer = GLAllocation.createDirectByteBuffer(this.byteBuffer.capacity());
-        ((Buffer)this.byteBuffer).position(0);
-        bytebuffer.put(this.byteBuffer);
-        ((Buffer)bytebuffer).rewind();
-        return bytebuffer;
     }
 
     private static int roundUpPositive(int xIn) {
