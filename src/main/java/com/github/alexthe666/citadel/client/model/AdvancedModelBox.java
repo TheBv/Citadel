@@ -1,5 +1,7 @@
 package com.github.alexthe666.citadel.client.model;
 
+import com.esotericsoftware.reflectasm.FieldAccess;
+import com.esotericsoftware.reflectasm.MethodAccess;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.PositionTextureVertex;
 import com.github.alexthe666.citadel.client.model.TabulaModelRenderUtils.TexturedQuad;
 import com.mojang.blaze3d.matrix.MatrixStack;
@@ -9,6 +11,7 @@ import com.mojang.blaze3d.vertex.IVertexConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.model.ModelRenderer;
 import net.minecraft.util.math.MathHelper;
@@ -18,14 +21,28 @@ import net.minecraft.util.math.vector.Vector3f;
 import net.minecraft.util.math.vector.Vector4f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
+import org.spongepowered.tools.obfuscation.mirror.FieldHandle;
 
+import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 
+
+import java.lang.invoke.CallSite;
+import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.function.ObjIntConsumer;
+import java.util.function.ToIntFunction;
 /**
  * An enhanced RendererModel
  *
@@ -62,10 +79,18 @@ public class AdvancedModelBox extends ModelRenderer {
     public float offsetZ;
     public String boxName;
     Method growBuffer;
+    int growBufferIndex;
+    int fullFormatFieldIndex;
+    int nextElementBytesFieldIndex;
+    int vertexCountFieldIndex;
     Field fullFormatField;
     Field nextElementBytesField;
     Field vertexCountField;
-    BufferBuilderImproved builderImproved = new BufferBuilderImproved(25*36);
+    ObjIntConsumer growBufferLambda;
+    //FieldAccess access = FieldAccess.get(BufferBuilder.class);
+    //MethodAccess methodAccess = MethodAccess.get(BufferBuilder.class);
+    //FieldAccess<BufferBuilder> fieldAccess = ClassAccessFactory.get(BufferBuilder.class);
+    //MethodAccess<BufferBuilder> methodAccess = ClassAccessFactory.get(BufferBuilder.class);
     public AdvancedModelBox(AdvancedEntityModel model, String name) {
         super(model);
         this.scaleX = 1.0F;
@@ -79,18 +104,67 @@ public class AdvancedModelBox extends ModelRenderer {
         this.childModels = new ObjectArrayList();
         this.boxName = name;
         try {
+            //growBufferIndex = methodAccess.getIndex("growBuffer");
+            //fullFormatFieldIndex = access.getIndex("fullFormat");
+            //nextElementBytesFieldIndex = access.getIndex("nextElementBytes");
+            //vertexCountFieldIndex = access.getIndex("vertexCount");
             growBuffer = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
             growBuffer.setAccessible(true);
+
+            final Lookup original = MethodHandles.lookup();
+            final Field internal = Lookup.class.getDeclaredField("IMPL_LOOKUP");
+            internal.setAccessible(true);
+            final Lookup trusted = (Lookup) internal.get(original);
+
+            // Invoke black magic.
+            final Lookup caller = trusted.in(BufferBuilder.class);
+
+            final Method setterMethod = BufferBuilder.class.getDeclaredMethod("growBuffer", int.class);
+            final MethodHandle setterHandle = caller.unreflect(setterMethod);
+
+            growBufferLambda  = setterLambda(caller, setterHandle);
+
             fullFormatField = BufferBuilder.class.getDeclaredField("fullFormat");
-            fullFormatField.setAccessible(true);
+            fullFormatField.setAccessible(true);/*
             nextElementBytesField = BufferBuilder.class.getDeclaredField("nextElementBytes");
-            nextElementBytesField.setAccessible(true);
-            vertexCountField = BufferBuilder.class.getDeclaredField("vertexCount");
-            vertexCountField.setAccessible(true);
-        }
-        catch (Exception ex){
+            nextElementBytesField.setAccessible(true);*/
+            //growBuffer = MethodUtils.(BufferBuilder.class,"growBuffer",int.class);
+            nextElementBytesField = FieldUtils.getField(BufferBuilder.class,"nextElementBytes",true);
+            vertexCountField = FieldUtils.getField(BufferBuilder.class,"vertexCount",true);
+        } catch (Throwable ex){
             ex.printStackTrace();
         }
+    }
+
+    static ObjIntConsumer setterLambda(final Lookup caller,
+                                       final MethodHandle setterHandle) throws Throwable {
+
+        final Class<?> functionKlaz = ObjIntConsumer.class;
+        final String functionName = "accept";
+        final Class<?> functionReturn = void.class;
+        final Class<?>[] functionParams = new Class<?>[] { Object.class,
+                int.class };
+
+        final MethodType factoryMethodType = MethodType
+                .methodType(functionKlaz);
+        final MethodType functionMethodType = MethodType.methodType(
+                functionReturn, functionParams);
+
+        final CallSite setterFactory = LambdaMetafactory.metafactory( //
+                caller, // Represents a lookup context.
+                functionName, // The name of the method to implement.
+                factoryMethodType, // Signature of the factory method.
+                functionMethodType, // Signature of function implementation.
+                setterHandle, // Function method implementation.
+                setterHandle.type() // Function method type signature.
+        );
+
+        final MethodHandle setterInvoker = setterFactory.getTarget();
+
+        final ObjIntConsumer setterLambda = (ObjIntConsumer) setterInvoker
+                .invokeExact();
+
+        return setterLambda;
     }
 
     public AdvancedModelBox(AdvancedEntityModel model) {
@@ -287,63 +361,124 @@ public class AdvancedModelBox extends ModelRenderer {
     }
 
     @Override
-    public void render(MatrixStack matrixStack, IVertexBuilder vertexBuilder, int lightmapUV, int overlayUV, float red, float green, float blue, float alpha) {
+    public void render(MatrixStack p_228309_1_, IVertexBuilder p_228309_2_, int p_228309_3_, int p_228309_4_, float p_228309_5_, float p_228309_6_, float p_228309_7_, float p_228309_8_) {
         if (this.showModel) {
             if (!this.cubeList.isEmpty() || !this.childModels.isEmpty()) {
-                matrixStack.push();
-                this.translateRotate(matrixStack);
-                this.doRender(matrixStack.getLast(), vertexBuilder, lightmapUV, overlayUV, red, green, blue, alpha);
-                Iterator<ModelRenderer>  modelRendererIterator = this.childModels.iterator();
-                if(!scaleChildren){
-                    matrixStack.scale(1F / Math.max(this.scaleX, 0.0001F), 1F / Math.max(this.scaleY, 0.0001F) , 1F / Math.max(this.scaleZ, 0.0001F));
+                p_228309_1_.push();
+                this.translateRotate(p_228309_1_);
+                try {
+                    this.doRender(p_228309_1_.getLast(), p_228309_2_, p_228309_3_, p_228309_4_, p_228309_5_, p_228309_6_, p_228309_7_, p_228309_8_);
                 }
-                while (modelRendererIterator.hasNext()) {
-                    ModelRenderer lvt_10_1_ = modelRendererIterator.next();
-                    lvt_10_1_.render(matrixStack, vertexBuilder, lightmapUV, overlayUV, red, green, blue, alpha);
+                catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+                ObjectListIterator var9 = this.childModels.iterator();
+                if(!scaleChildren){
+                    p_228309_1_.scale(1F / Math.max(this.scaleX, 0.0001F), 1F / Math.max(this.scaleY, 0.0001F) , 1F / Math.max(this.scaleZ, 0.0001F));
+                }
+                while (var9.hasNext()) {
+                    ModelRenderer lvt_10_1_ = (ModelRenderer) var9.next();
+                    lvt_10_1_.render(p_228309_1_, p_228309_2_, p_228309_3_, p_228309_4_, p_228309_5_, p_228309_6_, p_228309_7_, p_228309_8_);
                 }
 
-                matrixStack.pop();
+                p_228309_1_.pop();
             }
         }
     }
-    //Need Buffer size = childModels.size
-    private void doRender(Entry entry, IVertexBuilder vertexBuilder, int lightmapUV, int overlayUV, float red, float green, float blue, float alpha) {
-        BufferBuilder bufferBuilder = (BufferBuilder) vertexBuilder;
-        builderImproved.setVertexFormat(bufferBuilder.getVertexFormat());
-        Matrix4f entryMatrix = entry.getMatrix();
-        Matrix3f entryNormal = entry.getNormal();
-        Iterator<TabulaModelRenderUtils.ModelBox> modelBoxIterator = this.cubeList.iterator();
-        while(modelBoxIterator.hasNext()) {
-            TabulaModelRenderUtils.ModelBox mod = modelBoxIterator.next();
-            TexturedQuad[] quads = mod.quads;
-            int quadLength = quads.length;
+    public int getSize() {
+        int other = 0;
+        for (TabulaModelRenderUtils.ModelBox modelBox : this.cubeList){
+            other += modelBox.quads.length *4;
+        }
+        return this.cubeList.size()* other;
+    }
+    private void doRender(Entry p_228306_1_, IVertexBuilder p_228306_2_, int lightmapUV, int overlayUV, float red, float green, float blue, float p_228306_8_) throws IllegalAccessException {
+        BufferBuilder bufferBuilder = (BufferBuilder) p_228306_2_;
 
-            for(int quadIndex = 0; quadIndex < quadLength; ++quadIndex) {
-                TexturedQuad quad = quads[quadIndex];
-                Vector3f normalQuad = quad.normal.copy();
-                normalQuad.transform(entryNormal);
-                float normalX = normalQuad.getX();
-                float normalY = normalQuad.getY();
-                float normalZ = normalQuad.getZ();
+        growBufferLambda.accept(bufferBuilder,getSize()*bufferBuilder.getVertexFormat().getSize());
+        boolean fullFormat = fullFormatField.getBoolean(bufferBuilder);
+        int vertexCount = vertexCountField.getInt(bufferBuilder);
+        int nextElementBytes = nextElementBytesField.getInt(bufferBuilder);
+        int tempElementBytes = 0;
+        Matrix4f lvt_9_1_ = p_228306_1_.getMatrix();
+        Matrix3f lvt_10_1_ = p_228306_1_.getNormal();
+        ObjectListIterator var11 = this.cubeList.iterator();
+        //List<BufferBuilderImproved.Vertex> vertexList = new ArrayList<>();
+        while(var11.hasNext()) {
+            TabulaModelRenderUtils.ModelBox lvt_12_1_ = (TabulaModelRenderUtils.ModelBox)var11.next();
+            TexturedQuad[] var13 = lvt_12_1_.quads;
+            int var14 = var13.length;
 
-                for(int quadPos = 0; quadPos < 4; ++quadPos) {
-                    PositionTextureVertex vertexPosition = quad.vertexPositions[quadPos];
-                    float posX = vertexPosition.position.getX() / 16.0F;
-                    float posY = vertexPosition.position.getY() / 16.0F;
-                    float posZ = vertexPosition.position.getZ() / 16.0F;
-                    Vector4f posVector = new Vector4f(posX, posY, posZ, 1.0F);
-                    posVector.transform(entryMatrix);
-                    builderImproved.addVertex(posVector.getX(), posVector.getY(), posVector.getZ(), red, green, blue, alpha, vertexPosition.textureU, vertexPosition.textureV, overlayUV, lightmapUV, normalX, normalY, normalZ);
+            for(int var15 = 0; var15 < var14; ++var15) {
+                TexturedQuad lvt_16_1_ = var13[var15];
+                Vector3f lvt_17_1_ = lvt_16_1_.normal.copy();
+                lvt_17_1_.transform(lvt_10_1_);
+                float lvt_18_1_ = lvt_17_1_.getX();
+                float lvt_19_1_ = lvt_17_1_.getY();
+                float lvt_20_1_ = lvt_17_1_.getZ();
+
+                for(int lvt_21_1_ = 0; lvt_21_1_ < 4; ++lvt_21_1_) {
+                    PositionTextureVertex lvt_22_1_ = lvt_16_1_.vertexPositions[lvt_21_1_];
+                    float lvt_23_1_ = lvt_22_1_.position.getX() / 16.0F;
+                    float lvt_24_1_ = lvt_22_1_.position.getY() / 16.0F;
+                    float lvt_25_1_ = lvt_22_1_.position.getZ() / 16.0F;
+                    Vector4f lvt_26_1_ = new Vector4f(lvt_23_1_, lvt_24_1_, lvt_25_1_, 1.0F);
+                    lvt_26_1_.transform(lvt_9_1_);
+                    bufferBuilder.putFloat(0+tempElementBytes, lvt_26_1_.getX());
+                    bufferBuilder.putFloat(4+tempElementBytes, lvt_26_1_.getY());
+                    bufferBuilder.putFloat(8+tempElementBytes, lvt_26_1_.getZ());
+                    bufferBuilder.putByte(12+tempElementBytes, (byte) ((int) (red * 255.0F)));
+                    bufferBuilder.putByte(13+tempElementBytes, (byte) ((int) (green * 255.0F)));
+                    bufferBuilder.putByte(14+tempElementBytes, (byte) ((int) (blue * 255.0F)));
+                    bufferBuilder.putByte(15+tempElementBytes, (byte) ((int) (p_228306_8_ * 255.0F)));
+                    bufferBuilder.putFloat(16+tempElementBytes, lvt_22_1_.textureU);
+                    bufferBuilder.putFloat(20+tempElementBytes, lvt_22_1_.textureV);
+                    int i;
+                    if (fullFormat) {
+                        bufferBuilder.putShort(24+tempElementBytes, (short) (overlayUV & '\uffff'));
+                        bufferBuilder.putShort(26+tempElementBytes, (short) (lightmapUV >> 16 & '\uffff'));
+                        i = 28;
+                    } else {
+                        i = 24;
+                    }
+
+                    bufferBuilder.putShort(i + 0+tempElementBytes, (short) (lightmapUV & '\uffff'));
+                    bufferBuilder.putShort(i + 2+tempElementBytes, (short) (lightmapUV >> 16 & '\uffff'));
+                    bufferBuilder.putByte(i + 4+tempElementBytes, IVertexConsumer.normalInt(lvt_18_1_));
+                    bufferBuilder.putByte(i + 5+tempElementBytes, IVertexConsumer.normalInt(lvt_19_1_));
+                    bufferBuilder.putByte(i + 6+tempElementBytes, IVertexConsumer.normalInt(lvt_20_1_));
+                    tempElementBytes += i+8;
+                    vertexCount++;
+                    //vertexList.add(new BufferBuilderImproved.Vertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), red, green, blue, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, p_228306_4_, p_228306_3_, lvt_18_1_, lvt_19_1_, lvt_20_1_));
+                    //p_228306_2_.addVertex(lvt_26_1_.getX(), lvt_26_1_.getY(), lvt_26_1_.getZ(), red, green, blue, p_228306_8_, lvt_22_1_.textureU, lvt_22_1_.textureV, overlayUV, lightmapUV, lvt_18_1_, lvt_19_1_, lvt_20_1_);
                 }
             }
         }
+        vertexCountField.setInt(bufferBuilder,vertexCount);
+        nextElementBytesField.setInt(bufferBuilder,nextElementBytes+tempElementBytes);
+
         try{
-            bufferBuilder.putBulkData(builderImproved.byteBuffer.duplicate());
+
+            //FieldUtils.readField(bufferBuilder,"vertexCount",true);
+
+            // (int) FieldUtils.readField(bufferBuilder,"vertexCount",true);//access.getInt(bufferBuilder,vertexCountFieldIndex);//getIntField(bufferBuilder,vertexCountFieldIndex);//vertexCountField.getInt(bufferBuilder);
+
+
+            //methodAccess.invoke(bufferBuilder,growBufferIndex,growBufferIndex,vertexList.size()*bufferBuilder.getVertexFormat().getSize());//(bufferBuilder,growBufferIndex,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+
+            //growBuffer.invoke(bufferBuilder,vertexList.size()*bufferBuilder.getVertexFormat().getSize());
+            //boolean fullFormat = fieldAccess.getBooleanField(bufferBuilder,fullFormatFieldIndex);//fullFormatField.getBoolean(bufferBuilder);
+            //int nextElementBytes = fieldAccess.getIntField(bufferBuilder,nextElementBytesFieldIndex);//nextElementBytesField.getInt(bufferBuilder);
+
+            //fieldAccess.setIntField(bufferBuilder,nextElementBytesFieldIndex,nextElementBytes+tempElementBytes);
+            //nextElementBytesField.set(bufferBuilder,nextElementBytes+tempElementBytes);
+            //fieldAccess.setIntField(bufferBuilder,vertexCountFieldIndex,vertexCount);
+            //
         }
         catch (Exception ex){
             ex.printStackTrace();
         }
-        builderImproved.discard();
+        
         /*for (BufferBuilderImproved.Vertex vertex : vertexList){
             p_228306_2_.addVertex(vertex.x, vertex.y, vertex.z, vertex.red, vertex.green, vertex.blue, vertex.alpha, vertex.texU, vertex.texV, vertex.overlayUV, vertex.lightmapUV,vertex.normalX, vertex.normalY, vertex.normalZ);
         }*/
