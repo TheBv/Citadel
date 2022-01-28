@@ -1,0 +1,1 @@
+Now on this separate page, pressing the link button should return you to the root page.
